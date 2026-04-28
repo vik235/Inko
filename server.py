@@ -35,6 +35,7 @@ def create_app() -> Flask:
             "index.html",
             settings=db.get_settings(),
             today=datetime.now().date().isoformat(),
+            payment_methods=db.get_payment_methods(),
         )
 
     @app.route("/history")
@@ -127,6 +128,65 @@ def create_app() -> Flask:
         resp.headers["Expires"] = "0"
         return resp
 
+    @app.route("/receipts/<receipt_id>/edit", methods=["GET", "POST"])
+    def receipt_edit(receipt_id: str):
+        r = db.get_receipt(receipt_id)
+        if not r:
+            abort(404)
+        if r.get("voided"):
+            return redirect(url_for("receipt_view", receipt_id=receipt_id))
+
+        if request.method == "POST":
+            try:
+                amount = float(request.form.get("amount", "0") or 0)
+            except ValueError:
+                return jsonify({"error": "Invalid amount"}), 400
+            if not request.form.get("payer_name"):
+                return jsonify({"error": "Payer name required"}), 400
+            if amount <= 0:
+                return jsonify({"error": "Amount must be > 0"}), 400
+
+            updates = {
+                "payer_name": request.form.get("payer_name", "").strip(),
+                "amount": amount,
+                "currency": (request.form.get("currency") or r["currency"]).strip(),
+                "receipt_date": request.form.get("receipt_date") or r["receipt_date"],
+                "payment_method": request.form.get("payment_method", "").strip(),
+                "description": request.form.get("description", "").strip(),
+                "email_address": request.form.get("email_address", "").strip(),
+                "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            }
+            db.update_receipt(receipt_id, updates)
+            _regen_pdf(receipt_id)
+            return redirect(url_for("receipt_view", receipt_id=receipt_id, edited="1"))
+
+        r["display_number"] = db.display_number(r)
+        return render_template(
+            "edit_receipt.html",
+            receipt=r,
+            settings=db.get_settings(),
+            payment_methods=db.get_payment_methods(),
+        )
+
+    @app.route("/receipts/<receipt_id>/void", methods=["POST"])
+    def receipt_void(receipt_id: str):
+        r = db.get_receipt(receipt_id)
+        if not r:
+            abort(404)
+        when = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        db.set_voided(receipt_id, True, when)
+        _regen_pdf(receipt_id)
+        return redirect(url_for("receipt_view", receipt_id=receipt_id, voided="1"))
+
+    @app.route("/receipts/<receipt_id>/unvoid", methods=["POST"])
+    def receipt_unvoid(receipt_id: str):
+        r = db.get_receipt(receipt_id)
+        if not r:
+            abort(404)
+        db.set_voided(receipt_id, False)
+        _regen_pdf(receipt_id)
+        return redirect(url_for("receipt_view", receipt_id=receipt_id))
+
     @app.route("/receipts/<receipt_id>/sign", methods=["POST"])
     def receipt_sign(receipt_id: str):
         r = db.get_receipt(receipt_id)
@@ -185,6 +245,43 @@ def create_app() -> Flask:
 
         db.update_email_status(receipt_id, "sent", to)
         return redirect(url_for("receipt_view", receipt_id=receipt_id, sent="1"))
+
+    @app.route("/api/test-email", methods=["POST"])
+    def test_email():
+        """Send a test email to verify SMTP config (recipient = user's own address)."""
+        saved = db.get_settings()
+        # Prefer values from the form (for unsaved-edit testing); fall back to saved.
+        f = request.form
+        cfg = {
+            "smtp_enabled": "1",
+            "smtp_host": f.get("smtp_host") or saved.get("smtp_host", ""),
+            "smtp_port": f.get("smtp_port") or saved.get("smtp_port", ""),
+            "smtp_username": f.get("smtp_username") or saved.get("smtp_username", ""),
+            "smtp_password": f.get("smtp_password") or saved.get("smtp_password", ""),
+            "email_from_name": f.get("email_from_name") or saved.get(
+                "email_from_name", "") or saved.get("business_name", ""),
+            "business_name": saved.get("business_name", ""),
+        }
+        to = cfg["smtp_username"].strip()
+        if not to:
+            return jsonify({"ok": False, "error": "Gmail address is required."}), 400
+        when = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            send_via_smtp(
+                to=to,
+                subject="Inko - SMTP test email",
+                body=(
+                    f"This is a test message from Inko.\n\n"
+                    f"If you received it, your SMTP settings are working correctly.\n\n"
+                    f"Sent at: {when}\n"
+                    f"From: {cfg['email_from_name']} <{to}>\n"
+                ),
+                pdf_path=None,
+                settings=cfg,
+            )
+        except EmailError as e:
+            return jsonify({"ok": False, "error": str(e)})
+        return jsonify({"ok": True, "to": to, "sent_at": when})
 
     @app.route("/api/open-pdf-folder", methods=["POST"])
     def open_pdf_folder():

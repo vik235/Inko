@@ -23,9 +23,12 @@
         </thead>
         <tbody>
         {% for r in receipts %}
-            <tr>
+            <tr class="{% if r.voided %}voided-row{% endif %}">
                 <td>{{ r.receipt_date }}</td>
-                <td class="mono">{{ r.display_number }}</td>
+                <td class="mono">
+                    {{ r.display_number }}
+                    {% if r.voided %}<span class="email-status failed">VOID</span>{% endif %}
+                </td>
                 <td>{{ r.payer_name }}</td>
                 <td class="num">{{ settings.currency_symbol }}{{ '%.2f'|format(r.amount) }} <span class="muted">{{ r.currency }}</span></td>
                 <td><span class="email-status {{ r.email_status or 'none' }}">{{ r.email_status or 'not sent' }}</span></td>

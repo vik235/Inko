@@ -48,6 +48,9 @@ def init_db() -> None:
         for col, ddl in [
             ("receipt_number", "ALTER TABLE receipts ADD COLUMN receipt_number TEXT"),
             ("signature_png",  "ALTER TABLE receipts ADD COLUMN signature_png TEXT"),
+            ("voided",         "ALTER TABLE receipts ADD COLUMN voided INTEGER NOT NULL DEFAULT 0"),
+            ("voided_at",      "ALTER TABLE receipts ADD COLUMN voided_at TEXT"),
+            ("updated_at",     "ALTER TABLE receipts ADD COLUMN updated_at TEXT"),
         ]:
             if col not in cols:
                 conn.execute(ddl)
@@ -82,6 +85,24 @@ DEFAULT_SETTINGS: dict[str, str] = {
         "Thanks,\n{business_name}"
     ),
 }
+
+DEFAULT_PAYMENT_METHODS = [
+    "Cash",
+    "UPI",
+    "Bank transfer",
+    "NEFT/IMPS/RTGS",
+    "Cheque",
+    "Credit card",
+    "Debit card",
+    "Wire transfer",
+    "PayPal",
+    "Other",
+]
+
+
+def get_payment_methods() -> list[str]:
+    return list(DEFAULT_PAYMENT_METHODS)
+
 
 # Keys that aren't user-editable from the form (managed internally)
 INTERNAL_KEYS = {"receipt_counter"}
@@ -197,6 +218,41 @@ def update_signature(receipt_id: str, signature_png: str) -> None:
             "UPDATE receipts SET signature_png = ? WHERE id = ?",
             (signature_png, receipt_id),
         )
+
+
+def update_receipt(receipt_id: str, updates: dict[str, Any]) -> None:
+    """Update editable fields of a receipt. Caller is responsible for sane values."""
+    allowed = {
+        "payer_name", "amount", "currency", "receipt_date",
+        "payment_method", "description", "email_address", "updated_at",
+    }
+    cols, vals = [], []
+    for k, v in updates.items():
+        if k not in allowed:
+            continue
+        cols.append(f"{k} = ?")
+        vals.append(v)
+    if not cols:
+        return
+    vals.append(receipt_id)
+    with connect() as conn:
+        conn.execute(
+            f"UPDATE receipts SET {', '.join(cols)} WHERE id = ?", vals
+        )
+
+
+def set_voided(receipt_id: str, voided: bool, when: str | None = None) -> None:
+    with connect() as conn:
+        if voided:
+            conn.execute(
+                "UPDATE receipts SET voided = 1, voided_at = ? WHERE id = ?",
+                (when, receipt_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE receipts SET voided = 0, voided_at = NULL WHERE id = ?",
+                (receipt_id,),
+            )
 
 
 def update_email_status(receipt_id: str, status: str, address: str | None = None) -> None:

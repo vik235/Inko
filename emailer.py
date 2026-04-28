@@ -47,7 +47,7 @@ def send_via_smtp(
     to: str,
     subject: str,
     body: str,
-    pdf_path: Path,
+    pdf_path: Path | None,
     settings: dict[str, str],
 ) -> None:
     if settings.get("smtp_enabled") != "1":
@@ -64,7 +64,7 @@ def send_via_smtp(
         raise EmailError("Gmail address and app password are required (Settings).")
     if not to:
         raise EmailError("Recipient address is required.")
-    if not pdf_path.exists():
+    if pdf_path is not None and not pdf_path.exists():
         raise EmailError(f"PDF not found: {pdf_path}")
 
     from_name = (settings.get("email_from_name") or settings.get("business_name") or user).strip()
@@ -74,13 +74,14 @@ def send_via_smtp(
     msg["To"] = to
     msg.set_content(body or "")
 
-    with open(pdf_path, "rb") as fh:
-        msg.add_attachment(
-            fh.read(),
-            maintype="application",
-            subtype="pdf",
-            filename=pdf_path.name,
-        )
+    if pdf_path is not None:
+        with open(pdf_path, "rb") as fh:
+            msg.add_attachment(
+                fh.read(),
+                maintype="application",
+                subtype="pdf",
+                filename=pdf_path.name,
+            )
 
     ctx = ssl.create_default_context()
     try:

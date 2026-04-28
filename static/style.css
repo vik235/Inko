@@ -444,4 +444,21 @@ button.small { padding: 5px 10px; font-size: 12px; }
 .email-status.failed { background: #fee2e2; color: #991b1b; }
 .email-status.drafted{ background: #fef3c7; color: #92400e; }
 
+.voided-row td { color: var(--muted); text-decoration: line-through; }
+.voided-row td:last-child { text-decoration: none; }
+.voided-row td a { color: var(--muted); }
+.void-btn { color: #b91c1c !important; }
+.void-btn:hover { background: #fee2e2 !important; }
+
 .banner.error { background: #fee2e2; color: #991b1b; }
+
+.test-email-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+.test-pending { color: var(--muted); }
+.test-ok      { color: var(--success-text); }
+.test-err     { color: #991b1b; }

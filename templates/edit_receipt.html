@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ receipt.display_number }}{% endblock %}
+{% block content %}
+<section class="card">
+    <div class="card-header">
+        <h1>Edit receipt <span class="muted mono">{{ receipt.display_number }}</span></h1>
+        <a class="button ghost" href="{{ url_for('receipt_view', receipt_id=receipt.id) }}">Cancel</a>
+    </div>
+    <p class="muted small">
+        Receipt number, ID and creation date stay the same. An updated-at timestamp is recorded.
+    </p>
+
+    <form method="post" class="form">
+        <div class="row">
+            <label>
+                <span>Received from <em>*</em></span>
+                <input type="text" name="payer_name" required value="{{ receipt.payer_name }}" autofocus>
+            </label>
+            <label>
+                <span>Date</span>
+                <input type="date" name="receipt_date" value="{{ receipt.receipt_date }}">
+            </label>
+        </div>
+
+        <div class="row">
+            <label>
+                <span>Amount <em>*</em></span>
+                <input type="number" name="amount" min="0.01" step="0.01" required value="{{ '%.2f'|format(receipt.amount) }}">
+            </label>
+            <label>
+                <span>Currency</span>
+                <input type="text" name="currency" value="{{ receipt.currency }}" maxlength="6">
+            </label>
+        </div>
+
+        <label>
+            <span>Payment method</span>
+            <input type="text" name="payment_method" list="payment-methods"
+                   value="{{ receipt.payment_method or '' }}"
+                   placeholder="Pick from list or type your own">
+        </label>
+        <datalist id="payment-methods">
+            {% for m in payment_methods %}<option value="{{ m }}">{% endfor %}
+        </datalist>
+
+        <label>
+            <span>For (description)</span>
+            <textarea name="description" rows="3">{{ receipt.description or '' }}</textarea>
+        </label>
+
+        <label>
+            <span>Payer email</span>
+            <input type="email" name="email_address" value="{{ receipt.email_address or '' }}">
+        </label>
+
+        <div class="actions">
+            <button type="submit" class="primary">Save changes</button>
+            <a class="button ghost" href="{{ url_for('receipt_view', receipt_id=receipt.id) }}">Cancel</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -3,15 +3,44 @@
 {% block content %}
 <section class="card">
     <div class="card-header">
-        <h1>Receipt <span class="muted mono">{{ receipt.display_number }}</span></h1>
+        <h1>
+            Receipt
+            <span class="muted mono">{{ receipt.display_number }}</span>
+            {% if receipt.voided %}<span class="email-status failed">VOIDED</span>{% endif %}
+        </h1>
         <div class="row-buttons">
             <a class="button" href="{{ url_for('receipt_email', receipt_id=receipt.id) }}">Email</a>
-            <button class="button ghost" type="button" id="open-sign">Re-sign</button>
+            {% if not receipt.voided %}
+                <a class="button ghost" href="{{ url_for('receipt_edit', receipt_id=receipt.id) }}">Edit</a>
+                <button class="button ghost" type="button" id="open-sign">Re-sign</button>
+                <form method="post" action="{{ url_for('receipt_void', receipt_id=receipt.id) }}"
+                      onsubmit="return confirm('Mark this receipt as VOIDED? It will be stamped VOID on the PDF and cannot be edited.');"
+                      style="display:inline;">
+                    <button class="button ghost void-btn" type="submit">Void</button>
+                </form>
+            {% else %}
+                <form method="post" action="{{ url_for('receipt_unvoid', receipt_id=receipt.id) }}" style="display:inline;">
+                    <button class="button ghost" type="submit">Restore (unvoid)</button>
+                </form>
+            {% endif %}
             <a class="button ghost" href="{{ url_for('receipt_pdf', receipt_id=receipt.id) }}" target="_blank">Open PDF</a>
             <a class="button ghost" href="{{ url_for('receipt_pdf', receipt_id=receipt.id, download=1) }}">Download</a>
             <a class="button ghost" href="{{ url_for('history') }}">Back</a>
         </div>
     </div>
+
+    {% if request.args.get('edited') == '1' %}
+    <div class="banner success">Receipt updated.</div>
+    {% endif %}
+    {% if request.args.get('voided') == '1' %}
+    <div class="banner error">Receipt has been voided. The PDF now carries a VOID stamp.</div>
+    {% endif %}
+    {% if receipt.voided and not request.args.get('voided') %}
+    <div class="banner error">This receipt is voided{% if receipt.voided_at %} (at {{ receipt.voided_at }}){% endif %}.</div>
+    {% endif %}
+    {% if receipt.updated_at and not receipt.voided %}
+    <div class="muted small">Last edited {{ receipt.updated_at }}.</div>
+    {% endif %}
 
     {% if request.args.get('sent') == '1' %}
     <div class="banner success">Email sent to {{ receipt.email_address }}.</div>

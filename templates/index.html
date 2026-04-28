@@ -30,8 +30,12 @@
 
         <label>
             <span>Payment method</span>
-            <input type="text" name="payment_method" placeholder="Cash, UPI, Bank transfer, Cheque…">
+            <input type="text" name="payment_method" list="payment-methods"
+                   placeholder="Pick from list or type your own">
         </label>
+        <datalist id="payment-methods">
+            {% for m in payment_methods %}<option value="{{ m }}">{% endfor %}
+        </datalist>
 
         <label>
             <span>For (description)</span>

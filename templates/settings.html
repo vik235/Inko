@@ -152,6 +152,11 @@
             <span class="muted small">Placeholders: <code>{payer_name}</code>, <code>{amount}</code>, <code>{currency}</code>, <code>{currency_symbol}</code>, <code>{receipt_number}</code>, <code>{receipt_date}</code>, <code>{business_name}</code></span>
         </label>
 
+        <div class="test-email-row">
+            <button type="button" id="test-email-btn" class="ghost small">Send test email to myself</button>
+            <span id="test-email-result" class="muted small"></span>
+        </div>
+
         <h2 class="section-title">Footer</h2>
         <label>
             <span>Footer text</span>
@@ -245,6 +250,38 @@
         if (dataUrl) hidden.value = dataUrl;
         resubmitting = true;
         form.submit();
+    });
+
+    // --- Test email button ---
+    const testBtn = document.getElementById('test-email-btn');
+    const testOut = document.getElementById('test-email-result');
+    testBtn.addEventListener('click', async () => {
+        testBtn.disabled = true;
+        testOut.textContent = 'Sending…';
+        testOut.className = 'small test-pending';
+        const fd = new FormData();
+        ['smtp_host', 'smtp_port', 'smtp_username', 'smtp_password',
+         'email_from_name'].forEach(name => {
+            const el = form.elements[name];
+            if (el) fd.append(name, el.value);
+        });
+        try {
+            const res = await fetch('{{ url_for("test_email") }}', {
+                method: 'POST', body: fd,
+            });
+            const data = await res.json();
+            if (data.ok) {
+                testOut.textContent = `Sent to ${data.to}. Check your inbox (also Spam).`;
+                testOut.className = 'small test-ok';
+            } else {
+                testOut.textContent = data.error || 'Send failed.';
+                testOut.className = 'small test-err';
+            }
+        } catch (e) {
+            testOut.textContent = `Network error: ${e.message}`;
+            testOut.className = 'small test-err';
+        }
+        testBtn.disabled = false;
     });
 
     // --- Live preview of next receipt number ---

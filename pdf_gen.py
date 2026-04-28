@@ -141,7 +141,7 @@ def _draw_brand_block(canv, x: float, y_top: float) -> None:
     canv.drawString(text_x, y_top - 6.6 * mm, BRAND_SUB)
 
 
-def _draw_page_chrome(canv, doc) -> None:
+def _draw_page_chrome(canv, doc, voided: bool = False) -> None:
     width, height = A4
     canv.saveState()
     # Slim accent stripe at very top
@@ -157,6 +157,25 @@ def _draw_page_chrome(canv, doc) -> None:
     canv.setFont(FONT_REGULAR, 8)
     canv.drawRightString(width - 20 * mm, 12 * mm,
                          f"Page {canv.getPageNumber()}")
+    canv.restoreState()
+
+    if voided:
+        _draw_void_watermark(canv)
+
+
+def _draw_void_watermark(canv) -> None:
+    """Diagonal translucent VOID stamp across the page."""
+    width, height = A4
+    canv.saveState()
+    canv.translate(width / 2, height / 2)
+    canv.rotate(28)
+    try:
+        canv.setFillAlpha(0.18)
+    except AttributeError:
+        pass
+    canv.setFillColor(HexColor("#dc2626"))  # red-600
+    canv.setFont(FONT_BOLD, 140)
+    canv.drawCentredString(0, -45, "VOID")
     canv.restoreState()
 
 
@@ -438,5 +457,10 @@ def generate_receipt_pdf(receipt: dict[str, Any], settings: dict[str, str]) -> P
         story.append(Spacer(1, 18 * mm))
         story.append(Paragraph(settings["footer"], footer_style))
 
-    doc.build(story, onFirstPage=_draw_page_chrome, onLaterPages=_draw_page_chrome)
+    voided = bool(receipt.get("voided"))
+
+    def _chrome(canv, d):
+        _draw_page_chrome(canv, d, voided=voided)
+
+    doc.build(story, onFirstPage=_chrome, onLaterPages=_chrome)
     return out_path
