@@ -3,6 +3,9 @@
 A small local Windows app for generating, storing, and emailing payment
 receipts as PDFs. Single-user, runs offline, no cloud account.
 
+> **Repo maintainers:** see [`TODO.md`](TODO.md) for one-time setup that's
+> still pending (branch protection rules on `main`).
+
 > Internally the project folder is still named `Quickr` for historical
 > reasons (renaming would invalidate the existing `.venv`). The shipped
 > app, executable, installer, and data folders are all `Inko`.
