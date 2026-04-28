@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Receipt {{ receipt.display_number }}{% endblock %}
+{% block content %}
+<section class="card">
+    <div class="card-header">
+        <h1>Receipt <span class="muted mono">{{ receipt.display_number }}</span></h1>
+        <div class="row-buttons">
+            <a class="button" href="{{ url_for('receipt_email', receipt_id=receipt.id) }}">Email</a>
+            <button class="button ghost" type="button" id="open-sign">Re-sign</button>
+            <a class="button ghost" href="{{ url_for('receipt_pdf', receipt_id=receipt.id) }}" target="_blank">Open PDF</a>
+            <a class="button ghost" href="{{ url_for('receipt_pdf', receipt_id=receipt.id, download=1) }}">Download</a>
+            <a class="button ghost" href="{{ url_for('history') }}">Back</a>
+        </div>
+    </div>
+
+    {% if request.args.get('sent') == '1' %}
+    <div class="banner success">Email sent to {{ receipt.email_address }}.</div>
+    {% endif %}
+
+    <dl class="kv">
+        <dt>Receipt #</dt><dd>{{ receipt.display_number }}</dd>
+        <dt>Date</dt><dd>{{ receipt.receipt_date }}</dd>
+        <dt>Received from</dt><dd>{{ receipt.payer_name }}</dd>
+        <dt>Amount</dt><dd><strong>{{ settings.currency_symbol }}{{ '%.2f'|format(receipt.amount) }}</strong> <span class="muted">{{ receipt.currency }}</span></dd>
+        {% if receipt.payment_method %}<dt>Method</dt><dd>{{ receipt.payment_method }}</dd>{% endif %}
+        {% if receipt.description %}<dt>For</dt><dd>{{ receipt.description }}</dd>{% endif %}
+        {% if receipt.email_address %}<dt>Payer email</dt><dd>{{ receipt.email_address }}</dd>{% endif %}
+        <dt>Email</dt>
+        <dd><span class="email-status {{ receipt.email_status or 'none' }}">{{ receipt.email_status or 'not sent' }}</span></dd>
+    </dl>
+
+    <iframe class="pdf-preview" src="{{ url_for('receipt_pdf', receipt_id=receipt.id) }}?v={{ cache_bust }}"></iframe>
+</section>
+
+<div class="modal" id="sign-modal" hidden>
+    <div class="modal-card">
+        <div class="modal-header">
+            <h2>Sign this receipt</h2>
+            <button type="button" class="icon-btn" id="sign-close" aria-label="Close">×</button>
+        </div>
+        <p class="muted small">Draw or type your signature. This replaces the signature on this receipt only.</p>
+        <form method="post" action="{{ url_for('receipt_sign', receipt_id=receipt.id) }}" id="sign-form">
+            <div class="tabs" role="tablist">
+                <button type="button" class="tab-btn active" data-mtab="draw">Draw</button>
+                <button type="button" class="tab-btn" data-mtab="type">Type</button>
+            </div>
+            <div class="tab-panel active" data-mpanel="draw">
+                <canvas id="sign-modal-pad" class="sig-pad"></canvas>
+            </div>
+            <div class="tab-panel" data-mpanel="type">
+                <div class="type-sig">
+                    <div class="row">
+                        <input type="text" id="m-type-text" placeholder="Type your name" maxlength="40">
+                        <select id="m-type-font"></select>
+                    </div>
+                    <div class="type-sig-preview">
+                        <span class="sample" id="m-type-sample">Your signature</span>
+                    </div>
+                </div>
+            </div>
+            <input type="hidden" name="signature_png" id="sign-modal-input">
+            <div class="modal-actions">
+                <button type="button" class="ghost" id="sign-modal-clear">Clear</button>
+                <button type="button" class="ghost" id="sign-modal-erase">Remove signature</button>
+                <button type="submit" class="primary">Save signature</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='signature-pad.js') }}"></script>
+<script>
+(function () {
+    const modal = document.getElementById('sign-modal');
+    const canvas = document.getElementById('sign-modal-pad');
+    const hidden = document.getElementById('sign-modal-input');
+    const form = document.getElementById('sign-form');
+    let pad = null;
+    let activeTab = 'draw';
+
+    // Modal tabs
+    document.querySelectorAll('[data-mtab]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            activeTab = btn.dataset.mtab;
+            document.querySelectorAll('[data-mtab]').forEach(b =>
+                b.classList.toggle('active', b === btn));
+            document.querySelectorAll('[data-mpanel]').forEach(p =>
+                p.classList.toggle('active', p.dataset.mpanel === activeTab));
+        });
+    });
+
+    // Type controls
+    const mText = document.getElementById('m-type-text');
+    const mFont = document.getElementById('m-type-font');
+    const mSample = document.getElementById('m-type-sample');
+    SIGNATURE_FONTS.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.id;
+        opt.textContent = f.label;
+        opt.style.fontFamily = `"${f.id}"`;
+        mFont.appendChild(opt);
+    });
+    function refreshSample() {
+        const txt = mText.value.trim() || 'Your signature';
+        mSample.textContent = txt;
+        mSample.style.fontFamily = `"${mFont.value}"`;
+        mSample.style.fontWeight =
+            (SIGNATURE_FONTS.find(f => f.id === mFont.value) || {}).weight || 400;
+    }
+    mText.addEventListener('input', refreshSample);
+    mFont.addEventListener('change', refreshSample);
+    refreshSample();
+
+    function open() {
+        modal.hidden = false;
+        if (!pad) pad = new SignaturePad(canvas);
+        else pad.clear();
+        {% if receipt.signature_png %}
+        pad.loadDataURL({{ receipt.signature_png|tojson }});
+        {% endif %}
+        // Pre-fill type input with payer name as a sensible suggestion
+        if (!mText.value) {
+            mText.value = {{ (settings.business_name or '')|tojson }};
+            refreshSample();
+        }
+    }
+    function close() { modal.hidden = true; }
+
+    document.getElementById('open-sign').addEventListener('click', open);
+    document.getElementById('sign-close').addEventListener('click', close);
+    document.getElementById('sign-modal-clear').addEventListener('click', () => {
+        if (activeTab === 'draw' && pad) pad.clear();
+        else if (activeTab === 'type') { mText.value = ''; refreshSample(); }
+    });
+    document.getElementById('sign-modal-erase').addEventListener('click', function () {
+        hidden.value = '';
+        form.submit();
+    });
+    form.addEventListener('submit', async function (e) {
+        if (hidden.value === '') return; // erase path
+        if (activeTab === 'draw') {
+            if (pad && !pad.isEmpty()) hidden.value = pad.toDataURL();
+            else { e.preventDefault(); alert('Please draw your signature first.'); }
+        } else {
+            e.preventDefault();
+            const weight = (SIGNATURE_FONTS.find(f => f.id === mFont.value) || {}).weight || 400;
+            const dataUrl = await renderTypedSignature(mText.value, mFont.value, { weight });
+            if (!dataUrl) { alert('Type your name first.'); return; }
+            hidden.value = dataUrl;
+            form.submit();
+        }
+    });
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) close();
+    });
+})();
+</script>
+{% endblock %}

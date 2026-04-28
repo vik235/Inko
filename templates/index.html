@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}New receipt{% endblock %}
+{% block content %}
+<section class="card">
+    <h1>New receipt</h1>
+    <p class="muted">Fill in the details. PDF is saved to <code>Documents\Inko</code>.</p>
+
+    <form method="post" action="{{ url_for('create_receipt') }}" class="form">
+        <div class="row">
+            <label>
+                <span>Received from <em>*</em></span>
+                <input type="text" name="payer_name" required autofocus>
+            </label>
+            <label>
+                <span>Date</span>
+                <input type="date" name="receipt_date" value="{{ today }}">
+            </label>
+        </div>
+
+        <div class="row">
+            <label>
+                <span>Amount <em>*</em></span>
+                <input type="number" name="amount" min="0.01" step="0.01" required>
+            </label>
+            <label>
+                <span>Currency</span>
+                <input type="text" name="currency" value="{{ settings.default_currency }}" maxlength="6">
+            </label>
+        </div>
+
+        <label>
+            <span>Payment method</span>
+            <input type="text" name="payment_method" placeholder="Cash, UPI, Bank transfer, Cheque…">
+        </label>
+
+        <label>
+            <span>For (description)</span>
+            <textarea name="description" rows="3" placeholder="What was this payment for?"></textarea>
+        </label>
+
+        <label>
+            <span>Payer email <span class="muted">(optional — used later for emailing)</span></span>
+            <input type="email" name="email_address" placeholder="name@example.com">
+        </label>
+
+        <div class="actions">
+            <button type="submit" class="primary">Generate receipt</button>
+        </div>
+    </form>
+</section>
+<script>
+    // default the date input to today
+    (function () {
+        var input = document.querySelector('input[name="receipt_date"]');
+        if (input && !input.value) {
+            var d = new Date();
+            var iso = d.getFullYear() + '-' +
+                String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                String(d.getDate()).padStart(2, '0');
+            input.value = iso;
+        }
+    })();
+</script>
+{% endblock %}

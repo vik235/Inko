@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Inko — {% block title %}Receipts{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+    <div class="brand">
+        <span class="brand-logo">I</span>
+        <div class="brand-text">
+            <div class="brand-name">Inko<sup>®</sup></div>
+            <div class="brand-sub">by Moviar LLC</div>
+        </div>
+    </div>
+    <nav>
+        <a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}">New receipt</a>
+        <a href="{{ url_for('history') }}" class="{% if request.endpoint == 'history' or request.endpoint == 'receipt_view' %}active{% endif %}">History</a>
+        <a href="{{ url_for('settings_page') }}" class="{% if request.endpoint == 'settings_page' %}active{% endif %}">Settings</a>
+    </nav>
+</header>
+<main>
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+.venv/
+venv/
+env/
+
+# PyInstaller / Inno Setup output
+build/
+dist/
+installer/
+
+# Local settings / IDE
+.claude/
+.vscode/
+.idea/
+
+# Local data (should never be in git)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# OS
+Thumbs.db
+.DS_Store

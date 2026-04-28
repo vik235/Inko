@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+{% block content %}
+<section class="card">
+    <div class="card-header">
+        <h1>History</h1>
+        <form method="post" action="{{ url_for('open_pdf_folder') }}">
+            <button class="ghost" type="submit">Open PDF folder</button>
+        </form>
+    </div>
+
+    {% if receipts %}
+    <table class="list">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Receipt #</th>
+                <th>Received from</th>
+                <th class="num">Amount</th>
+                <th>Email</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in receipts %}
+            <tr>
+                <td>{{ r.receipt_date }}</td>
+                <td class="mono">{{ r.display_number }}</td>
+                <td>{{ r.payer_name }}</td>
+                <td class="num">{{ settings.currency_symbol }}{{ '%.2f'|format(r.amount) }} <span class="muted">{{ r.currency }}</span></td>
+                <td><span class="email-status {{ r.email_status or 'none' }}">{{ r.email_status or 'not sent' }}</span></td>
+                <td class="actions-cell">
+                    <a href="{{ url_for('receipt_view', receipt_id=r.id) }}">View</a>
+                    <a href="{{ url_for('receipt_pdf', receipt_id=r.id) }}" target="_blank">PDF</a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p class="muted">No receipts yet. <a href="{{ url_for('index') }}">Create your first one →</a></p>
+    {% endif %}
+</section>
+{% endblock %}

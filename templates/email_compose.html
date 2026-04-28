@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Email receipt {{ receipt.display_number }}{% endblock %}
+{% block content %}
+<section class="card">
+    <div class="card-header">
+        <h1>Email receipt <span class="muted mono">{{ receipt.display_number }}</span></h1>
+        <a class="button ghost" href="{{ url_for('receipt_view', receipt_id=receipt.id) }}">Cancel</a>
+    </div>
+
+    {% if not settings.smtp_enabled or settings.smtp_enabled != "1" %}
+    <div class="banner error">
+        Email sending is not enabled. Open
+        <a href="{{ url_for('settings_page') }}">Settings → Email</a>
+        and add your Gmail address + App Password.
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="banner error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" class="form">
+        <div class="compose-grid">
+            <label for="to">To</label>
+            <input type="email" name="to" id="to" required value="{{ to }}" placeholder="recipient@example.com">
+
+            <label for="from">From</label>
+            <input type="text" id="from" disabled value="{{ (settings.email_from_name or settings.business_name) }} &lt;{{ settings.smtp_username }}&gt;">
+
+            <label for="subject">Subject</label>
+            <input type="text" name="subject" id="subject" required value="{{ subject }}">
+
+            <label for="body">Body</label>
+            <textarea name="body" id="body" rows="10">{{ body }}</textarea>
+
+            <label>Attached</label>
+            <div>
+                <span class="attach-pill">📎 receipt-{{ receipt.id }}.pdf</span>
+            </div>
+        </div>
+
+        <div class="actions" style="justify-content: flex-end;">
+            <a class="button ghost" href="{{ url_for('receipt_view', receipt_id=receipt.id) }}">Cancel</a>
+            <button type="submit" class="primary"
+                {% if settings.smtp_enabled != "1" %}disabled{% endif %}>
+                Send via Gmail
+            </button>
+        </div>
+    </form>
+</section>
+{% endblock %}
