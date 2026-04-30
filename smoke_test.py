@@ -146,8 +146,21 @@ print("[8/8] PDF embeds the saved signature")
 pdf_path = Path(rec["pdf_path"])
 assert pdf_path.exists()
 size = pdf_path.stat().st_size
-assert size > 70_000, f"PDF too small ({size}); signature may not be embedded"
-print(f"   OK - PDF size: {size} bytes")
+# ReportLab embeds raster images (PNG signatures) as Image XObjects; one
+# of these markers will appear in any PDF that has at least one image.
+# We don't size-check because Windows runs embed Arial (~70 KB) while
+# Linux CI uses the built-in Helvetica (no font embedded, ~5 KB).
+with open(pdf_path, "rb") as fh:
+    pdf_bytes = fh.read()
+has_image_xobject = any(
+    marker in pdf_bytes
+    for marker in (b"/Subtype /Image", b"/Subtype/Image", b"/Image ")
+)
+assert has_image_xobject, (
+    f"PDF has no Image XObject — signature not embedded "
+    f"(size={size} bytes)"
+)
+print(f"   OK - PDF size: {size} bytes; image XObject present")
 
 print()
 print("All checks passed.")
