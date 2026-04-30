@@ -6,7 +6,10 @@
     <p class="muted">These appear on every receipt. All fields are optional.</p>
 
     {% if saved %}
-    <div class="banner success">Settings saved.</div>
+    <div class="banner success">Settings saved. Auto-backup created.</div>
+    {% endif %}
+    {% if restored %}
+    <div class="banner success">Restored from <code>{{ restored }}</code>. A safety snapshot of the previous state was taken first.</div>
     {% endif %}
 
     <form method="post" class="form" id="settings-form">
@@ -169,6 +172,55 @@
     </form>
 </section>
 
+<section class="card">
+    <div class="card-header">
+        <h2 style="margin:0; font-size: 18px;">Backups</h2>
+        <div class="row-buttons">
+            <button type="button" class="ghost small" id="backup-now-btn">Backup now</button>
+            <form method="post" action="{{ url_for('open_backups_folder') }}" style="display:inline;">
+                <button type="button" class="ghost small" onclick="this.form.submit();">Open folder</button>
+            </form>
+        </div>
+    </div>
+    <p class="muted small">
+        Auto-backed up to <code>Documents\Inko\backups\</code> on every settings save and once per day.
+        Last 30 backups kept; older are pruned.
+        {% if latest_backup %}
+            <br>Latest: <strong>{{ latest_backup.taken_at }}</strong> ({{ latest_backup.size_kb }} KB).
+        {% else %}
+            <br><em>No backups yet — they'll be created on the first settings save.</em>
+        {% endif %}
+        <span id="backup-now-result" class="small"></span>
+    </p>
+
+    {% if backups %}
+    <table class="list" style="margin-top: 8px;">
+        <thead>
+            <tr>
+                <th>When</th>
+                <th>Size</th>
+                <th class="actions-cell">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for b in backups %}
+            <tr>
+                <td><span class="mono">{{ b.taken_at }}</span></td>
+                <td>{{ b.size_kb }} KB</td>
+                <td class="actions-cell">
+                    <form method="post" action="{{ url_for('backup_restore_route') }}" style="display:inline;"
+                          onsubmit="return confirm('Restore from this backup?\n\nThis REPLACES your current settings AND all receipts with the contents of {{ b.taken_at }}. A safety snapshot of your current state will be taken first.\n\nProceed?');">
+                        <input type="hidden" name="name" value="{{ b.name }}">
+                        <button type="submit" class="ghost small">Restore</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</section>
+
 <script src="{{ url_for('static', filename='signature-pad.js') }}"></script>
 <script>
 (function () {
@@ -251,6 +303,32 @@
         resubmitting = true;
         form.submit();
     });
+
+    // --- Manual "Backup now" button ---
+    const bNow = document.getElementById('backup-now-btn');
+    const bOut = document.getElementById('backup-now-result');
+    if (bNow) {
+        bNow.addEventListener('click', async () => {
+            bNow.disabled = true;
+            bOut.textContent = ' · Creating backup…';
+            bOut.className = 'small test-pending';
+            try {
+                const res = await fetch('{{ url_for("backup_now_route") }}', {method: 'POST'});
+                const data = await res.json();
+                if (data.ok) {
+                    bOut.textContent = ` · Backed up: ${data.name}. Refresh to see it in the list.`;
+                    bOut.className = 'small test-ok';
+                } else {
+                    bOut.textContent = ` · ${data.error}`;
+                    bOut.className = 'small test-err';
+                }
+            } catch (e) {
+                bOut.textContent = ` · Network error: ${e.message}`;
+                bOut.className = 'small test-err';
+            }
+            bNow.disabled = false;
+        });
+    }
 
     // --- Test email button ---
     const testBtn = document.getElementById('test-email-btn');

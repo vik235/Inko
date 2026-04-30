@@ -6,9 +6,10 @@ from flask import (
 )
 from ulid import ULID
 
+import backup as backup_mod
 import db
 from emailer import EmailError, render_template_text, send_via_smtp
-from paths import pdf_output_dir, resource_path
+from paths import backup_dir, pdf_output_dir, resource_path
 from pdf_gen import generate_receipt_pdf
 
 
@@ -21,6 +22,11 @@ def create_app() -> Flask:
     # Allow large form posts (signature data URLs can be 50–200 KB)
     app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
     db.init_db()
+    # Daily backup on startup if today's snapshot doesn't exist yet.
+    try:
+        backup_mod.maybe_daily_backup()
+    except Exception:
+        pass
 
     def _regen_pdf(receipt_id: str) -> Path:
         r = db.get_receipt(receipt_id)
@@ -51,11 +57,18 @@ def create_app() -> Flask:
     def settings_page():
         if request.method == "POST":
             db.save_settings(request.form.to_dict())
+            try:
+                backup_mod.backup_now()
+            except Exception:
+                pass  # Don't fail the save if backup hits an OS error.
             return redirect(url_for("settings_page", saved="1"))
         return render_template(
             "settings.html",
             settings=db.get_settings(),
             saved=request.args.get("saved") == "1",
+            restored=request.args.get("restored", ""),
+            backups=backup_mod.list_backups()[:10],
+            latest_backup=backup_mod.latest_backup(),
         )
 
     @app.route("/api/receipts", methods=["POST"])
@@ -287,6 +300,32 @@ def create_app() -> Flask:
     def open_pdf_folder():
         import os
         os.startfile(str(pdf_output_dir()))  # type: ignore[attr-defined]
+        return ("", 204)
+
+    @app.route("/api/backup/now", methods=["POST"])
+    def backup_now_route():
+        try:
+            path = backup_mod.backup_now()
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)}), 500
+        return jsonify({"ok": True, "path": str(path),
+                        "name": Path(path).name})
+
+    @app.route("/api/backup/restore", methods=["POST"])
+    def backup_restore_route():
+        name = request.form.get("name", "")
+        try:
+            src = backup_mod.restore_from(name)
+        except (ValueError, FileNotFoundError) as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)}), 500
+        return redirect(url_for("settings_page", restored=Path(src).name))
+
+    @app.route("/api/open-backups-folder", methods=["POST"])
+    def open_backups_folder():
+        import os
+        os.startfile(str(backup_dir()))  # type: ignore[attr-defined]
         return ("", 204)
 
     return app

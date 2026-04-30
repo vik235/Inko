@@ -161,17 +161,42 @@ machine — but the file is unencrypted, so don't share or sync the
 
 ## Backup & restore
 
-Everything is in two folders:
+The whole app state lives in:
 
 ```text
 %APPDATA%\Inko\inko.db                <- receipts + settings
 %USERPROFILE%\Documents\Inko\*.pdf    <- generated receipt PDFs
 ```
 
-To back up: copy both folders. To restore on a different machine: install
-Inko, then drop the same files into the same paths and relaunch. The DB
-captures every receipt's data — PDFs are derivative and will regenerate from
-the DB on first view if missing.
+### Automatic backups
+
+The DB is auto-backed up to:
+
+```text
+%USERPROFILE%\Documents\Inko\backups\inko-YYYYMMDD-HHMMSS-mmm.db
+```
+
+Triggers:
+- On every **Settings save** (so changes are always recoverable).
+- Once per day on **app startup**, if no backup from today exists yet.
+
+Retention: the **last 30** are kept; older are pruned automatically.
+
+### Manual control (Settings → Backups section)
+
+- **Backup now** — take an immediate snapshot.
+- **Open folder** — opens the backups folder in Explorer.
+- **Restore** (on each row in the list) — confirmation prompt, then
+  replaces current settings *and* receipts with that backup. A safety
+  snapshot of the current state is taken first, so a restore is itself
+  reversible.
+
+### Cross-machine / disaster recovery
+
+To migrate to a new machine: install Inko on the new machine, copy
+`%APPDATA%\Inko\inko.db` over from the old machine, and relaunch. PDFs
+are derivative and will regenerate from the DB on first view if missing
+(or copy `Documents\Inko\` too if you want the original PDFs preserved).
 
 ---
 

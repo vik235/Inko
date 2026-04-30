@@ -91,6 +91,12 @@ def pdf_output_dir() -> Path:
     return p
 
 
+def backup_dir() -> Path:
+    p = _documents_root() / PDF_FOLDER_NAME / "backups"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
 def resource_path(rel: str) -> Path:
     """Resolve a bundled resource path whether running from source or PyInstaller."""
     if getattr(sys, "frozen", False):
