@@ -8,6 +8,7 @@ from ulid import ULID
 
 import backup as backup_mod
 import db
+import paths
 from emailer import EmailError, render_template_text, send_via_smtp
 from paths import backup_dir, pdf_output_dir, resource_path
 from pdf_gen import generate_receipt_pdf
@@ -27,6 +28,10 @@ def create_app() -> Flask:
         backup_mod.maybe_daily_backup()
     except Exception:
         pass
+
+    @app.context_processor
+    def _inject_env():
+        return {"app_env": paths.env()}
 
     def _regen_pdf(receipt_id: str) -> Path:
         r = db.get_receipt(receipt_id)

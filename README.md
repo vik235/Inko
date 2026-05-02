@@ -41,6 +41,36 @@ Start menu or desktop shortcut.
 
 ---
 
+## Dev vs prod separation
+
+Inko uses **environment-aware data folders** so dev work cannot affect
+real-world (prod) receipts.
+
+| How you launch | Detected env | DB / folder suffix |
+|---|---|---|
+| Installed `.exe` (PyInstaller-frozen) | `prod` | none — uses `Inko\` |
+| `python app.py` from source | `dev` | `-dev` — uses `Inko-dev\` |
+| `INKO_ENV=staging python app.py` | `staging` | `-staging` |
+| Any `INKO_ENV=<name>` set | `<name>` | `-<name>` |
+
+The `INKO_ENV` env var **always wins** over auto-detection.
+
+The window title and topbar carry an environment chip (e.g. `DEV`,
+`STAGING`) when not in prod, so you'll never confuse them while both
+are open.
+
+**Convenient launch:** double-click `run-dev.bat` to launch in dev mode
+(it sets `INKO_ENV=dev` for you).
+
+**Need prod data in dev for a debug session?** Manually copy:
+```bat
+copy "%APPDATA%\Inko\inko.db" "%APPDATA%\Inko-dev\inko-dev.db"
+```
+…then relaunch dev. Reverse the copy to push dev work back into prod
+(careful — overwrites prod state).
+
+---
+
 ## Where files live
 
 | What | Path |

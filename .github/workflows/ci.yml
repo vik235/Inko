@@ -32,6 +32,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Env detection tests
+        run: python test_env.py
+
       - name: Smoke tests
         run: python smoke_test.py
 
@@ -40,3 +43,6 @@ jobs:
 
       - name: Feature tests (test-email + edit/void)
         run: python test_features.py
+
+      - name: Backup / restore tests
+        run: python test_backup.py
