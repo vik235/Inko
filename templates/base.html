@@ -13,6 +13,9 @@
             <div class="brand-name">Inko<sup>®</sup></div>
             <div class="brand-sub">by Moviar LLC</div>
         </div>
+        {% if app_env != "prod" %}
+        <span class="env-chip env-chip-{{ app_env }}" title="Running in {{ app_env }} — uses a separate data folder from prod.">{{ app_env|upper }}</span>
+        {% endif %}
     </div>
     <nav>
         <a href="{{ url_for('index') }}" class="{% if request.endpoint == 'index' %}active{% endif %}">New receipt</a>

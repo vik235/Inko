@@ -9,6 +9,7 @@ import time
 
 import webview
 
+import paths
 from server import create_app
 
 
@@ -38,8 +39,10 @@ def main() -> None:
     threading.Thread(target=run, daemon=True).start()
     _wait_for_server(port)
 
+    env = paths.env()
+    title = "Inko" if env == "prod" else f"Inko — {env.upper()}"
     webview.create_window(
-        "Inko",
+        title,
         f"http://127.0.0.1:{port}/",
         width=1000, height=750, min_size=(800, 600),
     )
