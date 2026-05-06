@@ -13,8 +13,9 @@ if not exist .venv (
 call .venv\Scripts\activate.bat || goto :err
 
 echo Installing dependencies...
-pip install --quiet --upgrade pip || goto :err
-pip install --quiet -r requirements.txt pyinstaller || goto :err
+REM Use python -m pip so pip can upgrade itself on Windows
+python -m pip install --quiet --upgrade pip || goto :err
+python -m pip install --quiet -r requirements.txt pyinstaller || goto :err
 
 echo Cleaning previous build...
 if exist build rmdir /s /q build
